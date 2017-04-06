@@ -1,0 +1,258 @@
+---
+- set_fact: outer_loop={{ item }}
+
+- fail: msg="Variables are not ot incorrectly set"
+  when: >
+    outer_loop.fqdn is not defined or outer_loop.state is not defined or
+    ( outer_loop.state != 'present' and outer_loop.state != 'absent' )
+
+- name: Put current date in variabele
+  local_action: shell date +%s
+  changed_when: false
+  check_mode: no
+  register: brl_date
+
+# Start: block for generating certs
+- block:
+  - name: Check if cert exists
+    stat:
+      path: "{{brl_crt_src}}/{{outer_loop.fqdn}}.crt"
+    delegate_to: localhost
+    register: brl_cert_stat
+
+  - name: Get cert exp date in epoch format
+    shell: >
+      date +%s -d
+      "`openssl x509 -in {{brl_crt_src}}/{{outer_loop.fqdn}}.crt -noout -enddate |
+      sed -e 's/^.*=//'`"
+    register: brl_cert_exp
+    when: brl_cert_stat.stat.exists
+    delegate_to: localhost
+    changed_when: false
+
+  - name: The cert expires in less than (one week)
+    set_fact:
+      brl_cert_replace=true
+    when: brl_cert_exp.stdout|default(604801)|int - brl_crt_maxage|int < brl_date.stdout|int
+
+  # Start: block: renewal is needed
+  - block:
+    - name: Check if key is present
+      stat:
+        path="{{brl_crt_src}}/{{outer_loop.fqdn}}.key"
+      delegate_to: localhost
+      register: brl_key_stat
+
+    - name: The key is less than (one year) old
+      set_fact:
+        brl_key_young=true
+      when: >
+        brl_key_stat.stat.mtime|default(0)|int + brl_key_maxage|int > brl_date.stdout|int
+
+    # Start: block for regenerating key file
+    - block:
+      - name: Create new key file
+        shell: >
+          openssl genrsa -out "{{outer_loop.fqdn}}.key"
+          {{brl_bitsize|default(4096)}}
+        args:
+          chdir: "{{brl_crt_src}}"
+        delegate_to: localhost
+
+      - name: Cert request should be generated
+        set_fact: brl_csr_regen=true
+
+      # End: block for regenerating files
+      when: not brl_key_young|default(false)
+
+    - name: Check if cert request is present
+      stat:
+        path="{{brl_crt_src}}/{{outer_loop.fqdn}}.csr"
+      delegate_to: localhost
+      register: brl_csr_stat
+
+    - name: Regenerating csr is needed
+      # force_replacement is a command line extravar
+      set_fact: brl_csr_regen=true
+      when: >
+        not brl_csr_stat.stat.exists|default(false) or
+        force_replacement|default("")=="{{outer_loop.fqdn}}"
+
+    # Start: test csr and key modulus
+    - block:
+      - name: Get csr modulus
+        shell: >
+          openssl req -noout -modulus -in
+          "{{brl_crt_src}}/{{outer_loop.fqdn}}.csr"
+        delegate_to: localhost
+        register: brl_csr_modulus
+        changed_when: false
+
+      - name: Get key modulus
+        shell: >
+          openssl rsa -noout -modulus -in
+          "{{brl_crt_src}}/{{outer_loop.fqdn}}.key"
+        delegate_to: localhost
+        register: brl_key_modulus
+        changed_when: false
+
+      - name: Test if crs and key belong together
+        set_fact: brl_csr_regen=true
+        when: brl_csr_modulus.stdout != brl_key_modulus.stdout
+
+      # End: test csr and key modulus
+      when: >
+        brl_csr_stat.stat.exists and
+        not brl_csr_regen|default(false)
+
+    # Start: generate cert request
+    - block:
+      - name: Create config file for SAN definitions
+        template:
+          src: config_san.txt
+          dest: "{{brl_crt_src}}/{{outer_loop.fqdn}}.cfg"
+        delegate_to: localhost
+
+      - name: Generate new request
+        shell: >
+          openssl req -new -nodes -sha256
+          -key "{{outer_loop.fqdn}}.key"
+          -out "{{outer_loop.fqdn}}.csr"
+          -config "{{outer_loop.fqdn}}.cfg"
+          -subj "/CN={{outer_loop.fqdn}}"
+        args:
+          chdir: "{{brl_crt_src}}"
+        delegate_to: localhost
+
+      # End: generate cert request
+      when: brl_csr_regen|default(false)
+
+    - name: Query letsencrypt challenge
+      letsencrypt:
+        account_key: "{{brl_le_account}}"
+        account_email: "{{brl_le_email}}"
+        csr: "{{brl_crt_src}}/{{outer_loop.fqdn}}.csr"
+        dest: "{{brl_crt_src}}/{{outer_loop.fqdn}}.crt"
+        acme_directory: "{{brl_le_directory}}"
+        challenge: dns-01
+        remaining_days: 366
+      delegate_to: localhost
+      register: brl_le_challenge
+      failed_when: false
+
+    - fail: msg="Letsencrypt challenge fase failed"
+      when: brl_le_challenge.challenge_data is not defined
+
+    - name: Modify DNS file
+      lineinfile:
+        dest: "{{brl_dns_dir}}/{{brl_dns_file}}"
+        regexp: "^{{brl_dns_head}}{{dnsitem.key}}:"
+        line: "{{brl_dns_head}}{{dnsitem.key}}:{{dnsitem.value['dns-01']['resource_value']}}{{brl_dns_tail}}"
+        state: present
+      with_dict: "{{brl_le_challenge.challenge_data}}"
+      loop_control:
+        loop_var: dnsitem
+      delegate_to: localhost
+      register: brl_dns_modified
+
+    - name: Compile & SCP tinydns data files
+      shell: make
+      args:
+        chdir: "{{brl_dns_dir}}"
+      delegate_to: localhost
+      register: brl_dns_pushed
+      changed_when: false
+
+    - name: Reply to letsencrypt challenge
+      letsencrypt:
+        account_key: "{{brl_le_account}}"
+        account_email: "{{brl_le_email}}"
+        csr: "{{brl_crt_src}}/{{outer_loop.fqdn}}.csr"
+        dest: "{{brl_crt_src}}/{{outer_loop.fqdn}}.crt"
+        acme_directory: "{{brl_le_directory}}"
+        challenge: dns-01
+        remaining_days: 366
+        data: "{{brl_le_challenge}}"
+      delegate_to: localhost
+      when: brl_dns_modified.changed
+
+    - name: Check intermediate CA
+      shell: >
+        openssl x509 -in "{{outer_loop.fqdn}}.crt" -text |
+        grep "CA Issuers" | sed -e 's/^.*:h/h/'
+      args:
+        chdir: "{{brl_crt_src}}"
+      delegate_to: localhost
+      register: brl_ca_issuer
+      changed_when: false
+
+    # Start: we have a new CA, download and use it
+    - block:
+      - name: filter out the name part of the URL
+        set_fact:
+          brl_ca_name: "{{brl_ca_issuer.stdout|replace('http:','')|replace('/','')}}"
+
+      - name: Check if we already have the CA file
+        stat:
+          path: "{{brl_crt_src}}/{{brl_ca_name}}.crt"
+        delegate_to: localhost
+        register: ca_file_stat
+        failed_when: false
+
+      # Start: download and convert CA file
+      - block:
+        - name: Download CA file
+          get_url:
+            url: "{{brl_ca_issuer.stdout}}"
+            dest: "{{brl_crt_src}}/{{brl_ca_name}}.der"
+          delegate_to: localhost
+
+        - name: Convert CA file to PEM format
+          shell:
+            openssl x509 -inform DER -outform PEM
+            -in "{{brl_ca_name}}.der"
+            -out "{{brl_ca_name}}.crt"
+          args:
+            chdir: "{{brl_crt_src}}"
+          delegate_to: localhost
+
+        # End: download and convert CA file
+        when: not ca_file_stat.stat.exists
+
+      - name: Override CA variabele
+        set_fact:
+          brl_le_intca: "{{brl_ca_name}}.crt"
+
+      # End: we have a new CA, download and use it
+      when: brl_ca_issuer.stdout != "http://{{brl_le_intca}}/"
+
+    - name: Create chain file
+      shell: >
+        cat "{{outer_loop.fqdn}}.crt" "{{brl_le_intca}}" >
+        "{{outer_loop.fqdn}}.chain.crt"
+      args:
+        chdir: "{{brl_crt_src}}"
+      delegate_to: localhost
+
+    # End: block: renewal is needed
+    when: >
+      brl_cert_replace|default(false) or
+      force_replacement|default("")=="{{outer_loop.fqdn}}"
+
+  # End: block for generating certs
+  when: outer_loop.state|default("absent") == "present"
+
+- name: Remove certifates and keys
+  file:
+    dest: "{{brl_crt_src}}/{{outer_loop.fqdn}}.{{crt_item}}"
+    state: absent
+  with_items:
+    - crt
+    - chain.crt
+    - key
+    - csr
+    - cfg
+  loop_control:
+    loop_var: crt_item
+  delegate_to: localhost
+  when: outer_loop.state|default("present") == "absent"

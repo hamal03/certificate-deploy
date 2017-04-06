@@ -1,0 +1,70 @@
+---
+# tasks file for roles/certs
+# Variabele: format
+#   brl_certs:
+#     - fqdn: <fqdn>
+#       engine: apache|nginx|postfix
+#       state: present|absent
+#       san:
+#         - altfqdn1
+#         - ...
+#     - ...
+
+- name: Check if source directory exists
+  local_action: stat path="{{ brl_crt_src }}"
+  register: brl_src_mnt
+  check_mode: no
+
+- name: Fail on unmounted source directory
+  fail: msg="The source directory is not mounted or present"
+  when: not brl_src_mnt.stat.exists
+
+- name: Renew certificates if necessary
+  include: letsencrypt.yml
+  with_items:
+    - "{{brl_certs|default([])}}"
+
+- name: Check certificate correctness
+  include: modcheck.yml
+  with_items:
+    - "{{brl_certs|default([])}}"
+
+- name: Copy keys
+  copy:
+    src: "{{brl_crt_src}}/{{item.fqdn}}.key"
+    dest: "{{brl_key_dst}}/{{item.fqdn}}.key"
+    owner: root
+    group: wheel
+    mode: 0640
+  when: item.state == "present"
+  notify: Reload {{item.engine}}
+  with_items:
+    - "{{brl_certs|default([])}}"
+
+- name: Copy certificates
+  copy:
+    src: "{{brl_crt_src}}/{{item.fqdn}}.chain.crt"
+    dest: "{{brl_crt_dst}}/{{item.fqdn}}.chain.crt"
+    owner: root
+    group: wheel
+    mode: 0640
+  when: item.state == "present"
+  notify: Reload {{item.engine}}
+  with_items:
+    - "{{brl_certs|default([])}}"
+
+- name: Remove keys
+  file:
+    path: "{{brl_key_dst}}/{{item.fqdn}}.key"
+    state: absent
+  with_items:
+    - "{{brl_certs|default([])}}"
+  when: item.state == "absent"
+
+- name: Remove certificates
+  file:
+    path: "{{brl_crt_dst}}/{{item.fqdn}}.chain.crt"
+    state: absent
+  with_items:
+    - "{{brl_certs|default([])}}"
+  when: item.state == "absent"

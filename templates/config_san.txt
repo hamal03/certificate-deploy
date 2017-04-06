@@ -1,0 +1,18 @@
+[ req ]
+distinguished_name = req_distinguished_name
+{% if outer_loop.san | default([]) | length > 0 %}
+req_extensions = v3_req
+{% endif %}
+
+[ req_distinguished_name ]
+commonName = Common Name
+{% if outer_loop.san | default([]) | length > 0 %}
+
+[ v3_req ]
+subjectAltName = @alt_names
+
+[alt_names]
+{% for san in [ outer_loop.fqdn ] + outer_loop.san %}
+DNS.{{ loop.index }} = {{ san }}
+{% endfor %}
+{% endif %}

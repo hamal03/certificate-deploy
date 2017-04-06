@@ -1,0 +1,32 @@
+---
+- set_fact: outer_loop={{ item }}
+
+- name: Variables are not/incorrectly set
+  fail: msg="Variables are not set"
+  when: >
+    outer_loop.fqdn is not defined or outer_loop.state is not defined or
+    ( outer_loop.state != 'present' and outer_loop.state != 'absent' )
+
+# Start: only makes sense with state == present
+- block:
+  - name: Calculate ssl key modulus
+    local_action: shell /usr/bin/openssl rsa -in {{brl_crt_src}}/{{outer_loop.fqdn}}.key -noout -modulus
+    become: false
+    changed_when: false
+    register: brl_ssl_key_modulus
+    check_mode: no
+
+  - name: Calculate ssl crt modulus
+    local_action: shell /usr/bin/openssl x509 -in {{brl_crt_src}}/{{outer_loop.fqdn}}.chain.crt -noout -modulus
+    become: false
+    changed_when: false
+    register: brl_ssl_crt_modulus
+    check_mode: no
+
+  - name: Test modulus equality
+    fail: msg="Key & cert modulus' differ"
+    when: >
+      brl_ssl_key_modulus.stdout != brl_ssl_crt_modulus.stdout
+
+  # End: only makes sense with state == present
+  when: outer_loop.state == "present"

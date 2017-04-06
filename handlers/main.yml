@@ -1,0 +1,14 @@
+---
+# handlers file for roles/certs
+- name: Reload apache
+  service:
+    name: httpd
+    state: reloaded
+
+- name: Reload nginx
+  shell: /usr/bin/pkill -HUP nginx
+
+- name: Reload postfix
+  service:
+    name: postfix
+    state: reloaded

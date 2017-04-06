@@ -1,0 +1,23 @@
+galaxy_info:
+  author: Rob Wolfram
+  description: Create or renew certificates with LetsEncrypt and deploy them
+  license: GPLv3
+  min_ansible_version: 2.2
+  platforms:
+    - name: EL
+      versions:
+        - 6
+        - 7
+    - name: Fedora
+      versions:
+        - 23
+        - 24
+  categories:
+    - security
+    - web
+  galaxy_tags:
+    - letsencrypt
+    - tinydns
+    - ssl
+    - security
+dependencies: []
