@@ -76,7 +76,7 @@
       set_fact: brl_csr_regen=true
       when: >
         not brl_csr_stat.stat.exists|default(false) or
-        force_replacement|default("")=="{{outer_loop.fqdn}}"
+        force_replacement|default("")==outer_loop.fqdn
 
     # Start: test csr and key modulus
     - block:
@@ -186,6 +186,9 @@
       register: brl_ca_issuer
       changed_when: false
 
+    # prevend using jinja vars in when statements
+    - set_fact:
+      brl_le_intca_url: "http://{{brl_le_intca}}/"
     # Start: we have a new CA, download and use it
     - block:
       - name: filter out the name part of the URL
@@ -224,7 +227,7 @@
           brl_le_intca: "{{brl_ca_name}}.crt"
 
       # End: we have a new CA, download and use it
-      when: brl_ca_issuer.stdout != "http://{{brl_le_intca}}/"
+      when: brl_ca_issuer.stdout != brl_le_intca_url
 
     - name: Create chain file
       shell: >
@@ -237,7 +240,7 @@
     # End: block: renewal is needed
     when: >
       brl_cert_replace|default(false) or
-      force_replacement|default("")=="{{outer_loop.fqdn}}"
+      force_replacement|default("")==outer_loop.fqdn
 
   # End: block for generating certs
   when: outer_loop.state|default("absent") == "present"
