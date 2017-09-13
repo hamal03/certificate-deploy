@@ -33,7 +33,7 @@
   - name: The cert expires in less than (one week)
     set_fact:
       brl_cert_replace=true
-    when: brl_cert_exp.stdout|default(604801)|int - brl_crt_maxage|int < brl_date.stdout|int
+    when: brl_cert_exp.stdout|int - brl_crt_maxage|default(604801)|int < brl_date.stdout|int
 
   # Start: block: renewal is needed
   - block:
@@ -162,6 +162,7 @@
       delegate_to: localhost
       register: brl_dns_pushed
       changed_when: false
+      when: brl_tinydns_modified.changed
 
     - name: Reply to letsencrypt challenge
       letsencrypt:
@@ -174,7 +175,6 @@
         remaining_days: 366
         data: "{{brl_le_challenge}}"
       delegate_to: localhost
-      when: brl_dns_modified.changed
 
     - name: Check intermediate CA
       shell: >
