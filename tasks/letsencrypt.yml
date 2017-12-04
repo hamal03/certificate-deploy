@@ -153,7 +153,7 @@
       loop_control:
         loop_var: dnsitem
       delegate_to: localhost
-      register: brl_dns_modified
+      register: brl_tinydns_modified
 
     - name: Compile & SCP tinydns data files
       shell: make
@@ -188,7 +188,7 @@
 
     # prevend using jinja vars in when statements
     - set_fact:
-      brl_le_intca_url: "http://{{brl_le_intca}}/"
+        brl_le_intca_url: "http://{{brl_le_intca}}/"
     # Start: we have a new CA, download and use it
     - block:
       - name: filter out the name part of the URL
