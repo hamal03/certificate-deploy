@@ -33,7 +33,8 @@
   - name: The cert expires in less than (one week)
     set_fact:
       brl_cert_replace=true
-    when: brl_cert_exp.stdout|int - brl_crt_maxage|default(604801)|int < brl_date.stdout|int
+    when: >
+      brl_cert_exp.stdout|default(1200000000)|int - brl_crt_maxage|default(604801)|int < brl_date.stdout|int
 
   # Start: block: renewal is needed
   - block:
