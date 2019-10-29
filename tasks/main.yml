@@ -36,7 +36,12 @@
     owner: root
     group: wheel
     mode: 0640
-  when: item.state == "present"
+  when: >
+    item.state == "present" and
+    not item.keep_local|default(false) and
+    not brl_certs_keeplocal
+    or item.state == "present" and
+    brl_certs_forcecopy
   notify: Reload {{item.engine}}
   with_items:
     - "{{brl_certs|default([])}}"
@@ -48,7 +53,12 @@
     owner: root
     group: wheel
     mode: 0640
-  when: item.state == "present"
+  when: >
+    item.state == "present" and
+    not item.keep_local|default(false) and
+    not brl_certs_keeplocal
+    or item.state == "present" and
+    brl_certs_forcecopy
   notify: Reload {{item.engine}}
   with_items:
     - "{{brl_certs|default([])}}"
@@ -59,7 +69,10 @@
     state: absent
   with_items:
     - "{{brl_certs|default([])}}"
-  when: item.state == "absent"
+  when: >
+    item.state == "absent" and
+    not item.keep_local and
+    not brl_certs_keeplocal
 
 - name: Remove certificates
   file:
@@ -67,4 +80,7 @@
     state: absent
   with_items:
     - "{{brl_certs|default([])}}"
-  when: item.state == "absent"
+  when: >
+    item.state == "absent" and
+    not item.keep_local and
+    not brl_certs_keeplocal
