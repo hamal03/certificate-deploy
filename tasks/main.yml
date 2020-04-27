@@ -34,7 +34,7 @@
     src: "{{brl_crt_src}}/{{item.fqdn}}.key"
     dest: "{{brl_key_dst}}/{{item.fqdn}}.key"
     owner: root
-    group: wheel
+    group: "{{item.group|default('wheel')}}"
     mode: 0640
   when: >
     item.state == "present" and
@@ -51,7 +51,7 @@
     src: "{{brl_crt_src}}/{{item.fqdn}}.chain.crt"
     dest: "{{brl_crt_dst}}/{{item.fqdn}}.chain.crt"
     owner: root
-    group: wheel
+    group: "{{item.group|default('wheel')}}"
     mode: 0640
   when: >
     item.state == "present" and
