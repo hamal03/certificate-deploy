@@ -17,6 +17,11 @@ brl_le_email: "foo@bar.com"
 # server, use "acme-v02" i.o. "acme-staging-v02"
 brl_le_directory: "https://acme-staging-v02.api.letsencrypt.org/directory"
 
+# The ACME protocol version (the module defaults to version 1)
+# If you use version 2 or later, you must agree to the terms of service
+# my setting the "brl_terms_agreed" variable to true. It defaults ro "false"
+brl_acme_version: "2"
+
 # The name of the intermediate certificate. For the real intermediate
 # file, use "cert.int-x3.letsencrypt.org.crt"
 brl_le_intca: "cert.stg-int-x1.letsencrypt.org.crt"

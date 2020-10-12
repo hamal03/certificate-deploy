@@ -129,7 +129,7 @@
       when: brl_csr_regen|default(false)
 
     - name: Query letsencrypt challenge
-      letsencrypt:
+      acme_certificate:
         account_key: "{{brl_le_account}}"
         account_email: "{{brl_le_email}}"
         csr: "{{brl_crt_src}}/{{outer_loop.fqdn}}.csr"
@@ -137,10 +137,14 @@
         acme_directory: "{{brl_le_directory}}"
         challenge: dns-01
         remaining_days: 366
+        acme_version: "{{brl_acme_version}}"
+        terms_agreed: "{{brl_terms_agreed|default(false)}}"
       delegate_to: localhost
       register: brl_le_challenge
       failed_when: false
 
+    - debug: var=brl_le_challenge
+      when: brl_le_challenge.challenge_data is not defined
     - fail: msg="Letsencrypt challenge fase failed"
       when: brl_le_challenge.challenge_data is not defined
 
@@ -166,7 +170,7 @@
       when: brl_tinydns_modified.changed
 
     - name: Reply to letsencrypt challenge
-      letsencrypt:
+      acme_certificate:
         account_key: "{{brl_le_account}}"
         account_email: "{{brl_le_email}}"
         csr: "{{brl_crt_src}}/{{outer_loop.fqdn}}.csr"
@@ -175,6 +179,8 @@
         challenge: dns-01
         remaining_days: 366
         data: "{{brl_le_challenge}}"
+        acme_version: "{{brl_acme_version}}"
+        terms_agreed: "{{brl_terms_agreed|default(false)}}"
       delegate_to: localhost
 
     - name: Check intermediate CA

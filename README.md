@@ -16,22 +16,23 @@ Requirements
 Role Variables
 --------------
 
-| Variable           | Default value                                        | Description                                |
-| ------------------ | ---------------------------------------------------- | ------------------------------------------ |
-| `brl_crt_src`      | `/home/luser/letsencrypt/certs`                      | The local directory for keys and certs     |
-| `brl_crt_dst`      | `/etc/pki/tls/certs`                                 | The local directory for keys and certs     |
-| `brl_key_dst`      | `/etc/pki/tls/private`                               | The local directory for keys and certs     |
-| `brl_le_account`   | `/home/luser/letsencrypt/account.pem`                | LetsEncrypt account key in PEM format      |
-| `brl_le_email`     | `foo@bar.com`                                        | LetsEncrypt account email                  |
-| `brl_le_directory` | `https://acme-staging.api.letsencrypt.org/directory` | The ACME directory.                        |
-| `brl_le_intca`     | `cert.stg-int-x1.letsencrypt.org.crt`                | The name of the intermediate certificate.  |
-| `brl_crt_maxage`   | `604800`                                             | Max validity (sec) of cert before renewal  |
-| `brl_key_maxage`   | `31556736`                                           | Maximum age of the key before regeneration |
-| `brl_bitsize`      | `4096`                                               | RSA key bit size                           |
-| `brl_dns_dir`      | `/home/luser/dns`                                    | Tinydns directory                          |
-| `brl_dns_file`     | `data`                                               | Tinydns source file                        |
-| `brl_dns_head`     | `'_acme-challenge.`                                  | Tinydns TXT RR prefix                      |
-| `brl_dns_tail`     | `:0::`                                               | Tinydns TXT RR postfix                     |
+| Variable           | Default value                                             | Description                                |
+| ------------------ | --------------------------------------------------------- | ------------------------------------------ |
+| `brl_crt_src`      | `/home/luser/letsencrypt/certs`                           | The local directory for keys and certs     |
+| `brl_crt_dst`      | `/etc/pki/tls/certs`                                      | The local directory for keys and certs     |
+| `brl_key_dst`      | `/etc/pki/tls/private`                                    | The local directory for keys and certs     |
+| `brl_le_account`   | `/home/luser/letsencrypt/account.pem`                     | LetsEncrypt account key in PEM format      |
+| `brl_le_email`     | `foo@bar.com`                                             | LetsEncrypt account email                  |
+| `brl_le_directory` | `https://acme-staging-v02.api.letsencrypt.org/directory`  | The ACME directory.                        |
+| `brl_acme_version` | `2`                                                       | The ACME protocol version                  |
+| `brl_le_intca`     | `cert.stg-int-x1.letsencrypt.org.crt`                     | The name of the intermediate certificate.  |
+| `brl_crt_maxage`   | `604800`                                                  | Max validity (sec) of cert before renewal  |
+| `brl_key_maxage`   | `31556736`                                                | Maximum age of the key before regeneration |
+| `brl_bitsize`      | `4096`                                                    | RSA key bit size                           |
+| `brl_dns_dir`      | `/home/luser/dns`                                         | Tinydns directory                          |
+| `brl_dns_file`     | `data`                                                    | Tinydns source file                        |
+| `brl_dns_head`     | `'_acme-challenge.`                                       | Tinydns TXT RR prefix                      |
+| `brl_dns_tail`     | `:0::`                                                    | Tinydns TXT RR postfix                     |
 
 These variables are defined in `default/main.yml`. Also see the comments in that
 file. Edit these defaults to reflect your own environment.
