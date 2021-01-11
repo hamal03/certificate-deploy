@@ -77,7 +77,8 @@
       set_fact: brl_csr_regen=true
       when: >
         not brl_csr_stat.stat.exists|default(false) or
-        force_replacement|default("")==outer_loop.fqdn
+        force_replacement|default("")==outer_loop.fqdn or
+        force_replace_all|default(false)|bool
 
     # Start: test csr and key modulus
     - block:
@@ -247,7 +248,8 @@
     # End: block: renewal is needed
     when: >
       brl_cert_replace|default(false) or
-      force_replacement|default("")==outer_loop.fqdn
+      force_replacement|default("")==outer_loop.fqdn or
+      force_replace_all|default(false)|bool
 
   # End: block for generating certs
   when: outer_loop.state|default("absent") == "present"
